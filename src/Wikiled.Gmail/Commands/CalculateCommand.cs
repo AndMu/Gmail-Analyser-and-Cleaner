@@ -38,7 +38,12 @@ namespace Wikiled.Gmail.Commands
         private void Save()
         {
             var data = senderHolders.GroupBy(item => item.Domain)
-                .Select(item => new { Domain = item.Key, Size = item.Sum(x => x.Size) })
+                .Select(item => new
+                {
+                    Domain = item.Key,
+                    Size = item.Sum(x => x.Size),
+                    Total = item.Count()
+                })
                 .OrderByDescending(item => item.Size);
             var json = JsonConvert.SerializeObject(data);
             File.WriteAllText("results.json", json);
