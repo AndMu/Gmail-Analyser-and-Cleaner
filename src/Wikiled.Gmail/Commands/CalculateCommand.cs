@@ -2,13 +2,11 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CsvHelper;
 using Google.Apis.Gmail.v1.Data;
-using Google.Apis.Requests;
 using NLog;
 using Wikiled.Core.Utility.Logging;
 using Wikiled.Gmail.Analysis;
@@ -39,7 +37,7 @@ namespace Wikiled.Gmail.Commands
             Task.WaitAll(first, second);
         }
 
-        protected override void OnMessageCallback(Message content, RequestError error, int i, HttpResponseMessage message)
+        protected override void OnMessageCallback(Message content)
         {
             var from = content.Payload?.Headers.Where(item => string.Compare(item.Name, "From", StringComparison.OrdinalIgnoreCase) == 0).Select(item => item.Value).FirstOrDefault();
             var unsubscribe = content.Payload?.Headers.Where(item => string.Compare(item.Name, "List-Unsubscribe", StringComparison.OrdinalIgnoreCase) == 0)
