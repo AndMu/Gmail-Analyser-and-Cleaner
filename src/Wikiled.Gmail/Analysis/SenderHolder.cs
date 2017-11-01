@@ -26,6 +26,8 @@ namespace Wikiled.Gmail.Analysis
             Size = size;
         }
 
+        public bool HasUnsubscribeTag { get; set; }
+
         public string Email { get; }
 
         public string Domain { get; }
