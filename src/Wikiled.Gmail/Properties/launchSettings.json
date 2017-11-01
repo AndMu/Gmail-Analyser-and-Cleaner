@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Wikiled.Gmail": {
+      "commandName": "Project",
+      "commandLineArgs": "calculate"
+    }
+  }
+}

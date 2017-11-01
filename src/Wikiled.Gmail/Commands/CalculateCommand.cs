@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Requests;
+using Newtonsoft.Json;
 using Wikiled.Gmail.Analysis;
 
 namespace Wikiled.Gmail.Commands
@@ -15,7 +17,7 @@ namespace Wikiled.Gmail.Commands
         public override void Execute()
         {
             base.Execute();
-
+            Save();
         }
 
         protected override void OnMessageCallback(Message content, RequestError error, int i, HttpResponseMessage message)
@@ -26,6 +28,20 @@ namespace Wikiled.Gmail.Commands
                 SenderHolder holder = new SenderHolder(@from, content.SizeEstimate);
                 senderHolders.Add(holder);
             }
+
+            if (senderHolders.Count % 1000 == 0)
+            {
+                Save();
+            }
+        }
+
+        private void Save()
+        {
+            var data = senderHolders.GroupBy(item => item.Domain)
+                .Select(item => new { Domain = item.Key, Size = item.Sum(x => x.Size) })
+                .OrderByDescending(item => item.Size);
+            var json = JsonConvert.SerializeObject(data);
+            File.WriteAllText("results.json", json);
         }
     }
 }
