@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CsvHelper;
@@ -24,12 +22,7 @@ namespace Wikiled.Gmail.Commands
         public override void Execute()
         {
             log.Info("Starting analysis...");
-            monitor = new PerformanceMonitor(0);
-            using (Observable.Interval(TimeSpan.FromSeconds(60))
-                             .Subscribe(item => PrintProgress()))
-            {
-                base.Execute();
-            }
+            base.Execute();
 
             log.Info("Completed. Saving results");
             var first = Task.Run(() => SaveByDomain());
@@ -37,28 +30,16 @@ namespace Wikiled.Gmail.Commands
             Task.WaitAll(first, second);
         }
 
-        protected override void OnMessageCallback(Message content)
+        protected override void OnMessageCallback(Message content, SenderHolder sender)
         {
-            var from = content.Payload?.Headers.Where(item => string.Compare(item.Name, "From", StringComparison.OrdinalIgnoreCase) == 0).Select(item => item.Value).FirstOrDefault();
-            var unsubscribe = content.Payload?.Headers.Where(item => string.Compare(item.Name, "List-Unsubscribe", StringComparison.OrdinalIgnoreCase) == 0)
-                                     .Select(item => item.Value)
-                                     .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(@from))
-            {
-                monitor.ManualyCount();
-                SenderHolder holder = new SenderHolder(@from, content.SizeEstimate);
-                holder.HasUnsubscribeTag = !string.IsNullOrWhiteSpace(unsubscribe);
-                senderHolders.Add(holder);
-                monitor.Increment();
-            }
+            monitor.ManualyCount();
+            senderHolders.Add(sender);
+            monitor.Increment();
         }
 
-        private void PrintProgress()
+        protected override void ProgressNotification()
         {
-            var line = new String('-', 50);
-            log.Info(line);
-            log.Info(monitor);
+            var line = new string('-', 50);
             var result = senderHolders.GroupBy(item => item.Domain)
                          .Select(
                              item => new
@@ -122,6 +103,7 @@ namespace Wikiled.Gmail.Commands
                     csvTarget.WriteField(record.Total);
                     csvTarget.WriteField(record.UnsubscribeCount);
                     csvTarget.WriteField(record.Size);
+                    csvTarget.NextRecord();
                 }
             }
         }
@@ -149,6 +131,7 @@ namespace Wikiled.Gmail.Commands
                     csvTarget.WriteField(record.Email);
                     csvTarget.WriteField(record.Total);
                     csvTarget.WriteField(record.Size);
+                    csvTarget.NextRecord();
                 }
             }
         }

@@ -1,8 +1,10 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
+using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using NLog;
 using Wikiled.Core.Utility.Arguments;
@@ -13,11 +15,11 @@ namespace Wikiled.Gmail.Commands
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-        protected string ApplicationName { get; } = "Wikiled GMail Cleaner";
-
         // If modifying these scopes, delete your previously saved credentials
         // at ~/.credentials/gmail-dotnet-quickstart.json
-        private readonly string[] scopes = {GmailService.Scope.GmailReadonly};
+        private readonly string[] scopes = { GmailService.Scope.GmailReadonly };
+
+        protected string ApplicationName { get; } = "Wikiled GMail Cleaner";
 
         public override void Execute()
         {
@@ -25,10 +27,11 @@ namespace Wikiled.Gmail.Commands
 
             using (var stream = new FileStream("client_id.json", FileMode.Open, FileAccess.Read))
             {
-                string credPath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal);
+                string credPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
                 credPath = Path.Combine(credPath, ".credentials/gmail-dotnet-quickstart.json");
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-                                                             GoogleClientSecrets.Load(stream).Secrets,
+                                                             GoogleClientSecrets
+                                                                 .Load(stream).Secrets,
                                                              scopes,
                                                              "user",
                                                              CancellationToken.None,
@@ -37,9 +40,17 @@ namespace Wikiled.Gmail.Commands
                 log.Info("Credential file saved to: " + credPath);
             }
 
-            Process(credential).Wait();
+            // Create Gmail API service.
+            var service = new GmailService(
+                new BaseClientService.Initializer
+                    {
+                        HttpClientInitializer = credential,
+                        ApplicationName = ApplicationName
+                    });
+
+            Process(service).Wait();
         }
 
-        protected abstract Task Process(UserCredential credential);
+        protected abstract Task Process(GmailService service);
     }
 }

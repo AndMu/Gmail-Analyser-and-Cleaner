@@ -1,18 +1,73 @@
 ﻿using System;
-using System.Linq;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
+using Google.Apis.Requests;
+using NLog;
+using Wikiled.Gmail.Analysis;
 
 namespace Wikiled.Gmail.Commands
 {
     public class NewslettersCommand : BaseListGmailCommand
     {
-        protected override void OnMessageCallback(Message content)
+        private static readonly Logger log = LogManager.GetCurrentClassLogger();
+
+        private readonly ConcurrentQueue<string> deleteMessage = new ConcurrentQueue<string>();
+
+        private GmailService currentGmailService;
+
+        public override void Execute()
         {
-            var unsubscribe = content.Payload?.Headers.Where(item => string.Compare(item.Name, "List-Unsubscribe", StringComparison.OrdinalIgnoreCase) == 0)
-                                     .Select(item => item.Value)
-                                     .FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(unsubscribe))
+            log.Info("Deleting newsletters...");
+            base.Execute();
+        }
+
+        protected override void OnMessageCallback(Message content, SenderHolder sender)
+        {
+            if (sender.HasUnsubscribeTag)
             {
+                deleteMessage.Enqueue(content.Id);
+            }
+        }
+
+        protected override async Task Process(GmailService service)
+        {
+            currentGmailService = service;
+            await base.Process(service).ConfigureAwait(false);
+            await DeleteMessages().ConfigureAwait(false);
+        }
+
+        protected override void ProgressNotification()
+        {
+            base.ProgressNotification();
+            Task.Run(DeleteMessages);
+        }
+
+        private async Task DeleteMessages()
+        {
+            var request = new BatchRequest(currentGmailService);
+            List<int> errors = new List<int>();
+            while (deleteMessage.TryDequeue(out var id))
+            {
+                request.Queue<Message>(
+                    currentGmailService.Users.Messages.Trash(id, "me"),
+                    (content, error, index, message) => { errors.Add(index); });
+            }
+
+            if (request.Count > 0)
+            {
+                log.Info("Deleting {0} messages", request.Count);
+                try
+                {
+                    await request.ExecuteAsync().ConfigureAwait(false);
+                    log.Error("Failed <{0}> requests", errors.Count);
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
+                }
             }
         }
     }
