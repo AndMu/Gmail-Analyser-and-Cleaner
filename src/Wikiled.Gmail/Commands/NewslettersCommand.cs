@@ -18,16 +18,20 @@ namespace Wikiled.Gmail.Commands
 
         private GmailService currentGmailService;
 
+        protected override bool IsChat => false;
+
         public override void Execute()
         {
             log.Info("Deleting newsletters...");
             base.Execute();
         }
 
-        protected override void OnMessageCallback(Message content, SenderHolder sender)
+        protected override void OnMessageCallback(Message content, SenderHolder sender) 
         {
             if (sender.HasUnsubscribeTag)
             {
+                var result = currentGmailService.Users.Messages.Trash("me", content.Id);
+                var exResExecute = result.Execute();
                 deleteMessage.Enqueue(content.Id);
             }
         }
@@ -53,7 +57,13 @@ namespace Wikiled.Gmail.Commands
             {
                 request.Queue<Message>(
                     currentGmailService.Users.Messages.Trash(id, "me"),
-                    (content, error, index, message) => { errors.Add(index); });
+                    (content, error, index, message) =>
+                        {
+                            if (error != null)
+                            {
+                                errors.Add(index);
+                            }
+                        });
             }
 
             if (request.Count > 0)
@@ -62,7 +72,10 @@ namespace Wikiled.Gmail.Commands
                 try
                 {
                     await request.ExecuteAsync().ConfigureAwait(false);
-                    log.Error("Failed <{0}> requests", errors.Count);
+                    if (errors.Count > 0)
+                    {
+                        log.Error("Failed <{0}> requests", errors.Count);
+                    }
                 }
                 catch (Exception ex)
                 {

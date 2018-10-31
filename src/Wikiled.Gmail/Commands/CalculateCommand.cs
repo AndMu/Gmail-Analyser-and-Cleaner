@@ -19,6 +19,8 @@ namespace Wikiled.Gmail.Commands
 
         private PerformanceMonitor monitor;
 
+        protected override bool IsChat => false;
+
         public override void Execute()
         {
             log.Info("Starting analysis...");

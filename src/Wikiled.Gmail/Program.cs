@@ -19,6 +19,7 @@ namespace Wikiled.Gmail
             List<Command> commandsList = new List<Command>();
             commandsList.Add(new CalculateCommand());
             commandsList.Add(new NewslettersCommand());
+            commandsList.Add(new ChatsCommand());
             var commands = commandsList.ToDictionary(item => item.Name, item => item, StringComparer.OrdinalIgnoreCase);
 
             try

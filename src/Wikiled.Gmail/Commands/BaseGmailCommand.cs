@@ -15,9 +15,7 @@ namespace Wikiled.Gmail.Commands
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-        // If modifying these scopes, delete your previously saved credentials
-        // at ~/.credentials/gmail-dotnet-quickstart.json
-        private readonly string[] scopes = { GmailService.Scope.GmailReadonly };
+        private readonly string[] scopes = { GmailService.Scope.MailGoogleCom, GmailService.Scope.GmailModify, GmailService.Scope.GmailCompose };
 
         protected string ApplicationName { get; } = "Wikiled GMail Cleaner";
 
@@ -28,15 +26,15 @@ namespace Wikiled.Gmail.Commands
             using (var stream = new FileStream("client_id.json", FileMode.Open, FileAccess.Read))
             {
                 string credPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-                credPath = Path.Combine(credPath, ".credentials/gmail-dotnet-quickstart.json");
+                credPath = Path.Combine(credPath, ".credentials/wikiled.gmail.json");
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-                                                             GoogleClientSecrets
-                                                                 .Load(stream).Secrets,
+                                                             GoogleClientSecrets.Load(stream).Secrets,
                                                              scopes,
                                                              "user",
                                                              CancellationToken.None,
                                                              new FileDataStore(credPath, true))
                                                          .Result;
+
                 log.Info("Credential file saved to: " + credPath);
             }
 

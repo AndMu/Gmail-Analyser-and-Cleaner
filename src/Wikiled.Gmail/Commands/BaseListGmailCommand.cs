@@ -22,6 +22,8 @@ namespace Wikiled.Gmail.Commands
 
         protected abstract void OnMessageCallback(Message content, SenderHolder sender);
 
+        protected abstract bool IsChat { get; }
+
         protected virtual void ProgressNotification()
         {
             var line = new string('-', 50);
@@ -32,7 +34,7 @@ namespace Wikiled.Gmail.Commands
         protected override async Task Process(GmailService service)
         {
             var emailListRequest = service.Users.Messages.List("me");
-            AddFilters(emailListRequest);
+            AddFilters(emailListRequest, IsChat);
             monitor = new PerformanceMonitor(0);
             using (Observable.Interval(TimeSpan.FromSeconds(60)).Subscribe(item => ProgressNotification()))
             {
@@ -40,9 +42,10 @@ namespace Wikiled.Gmail.Commands
             }
         }
 
-        private void AddFilters(UsersResource.MessagesResource.ListRequest emailListRequest)
+        private void AddFilters(UsersResource.MessagesResource.ListRequest emailListRequest, bool chat)
         {
-            emailListRequest.Q = "-label:chats";
+            var chatLabel = chat ? "+" : "-";
+            emailListRequest.Q = $"{chatLabel}label:chats";
             emailListRequest.IncludeSpamTrash = false;
             emailListRequest.MaxResults = 200;
         }
