@@ -2,11 +2,11 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
 using Google.Apis.Gmail.v1.Data;
 using NLog;
-using Wikiled.Core.Utility.Logging;
 using Wikiled.Gmail.Analysis;
 
 namespace Wikiled.Gmail.Commands
@@ -17,26 +17,22 @@ namespace Wikiled.Gmail.Commands
 
         private readonly ConcurrentBag<SenderHolder> senderHolders = new ConcurrentBag<SenderHolder>();
 
-        private PerformanceMonitor monitor;
-
         protected override bool IsChat => false;
 
-        public override void Execute()
+        protected override async Task Execute(CancellationToken token)
         {
             log.Info("Starting analysis...");
-            base.Execute();
+            await base.Execute(token).ConfigureAwait(false);
 
             log.Info("Completed. Saving results");
             var first = Task.Run(() => SaveByDomain());
             var second = Task.Run(() => SaveBySender());
-            Task.WaitAll(first, second);
+            await Task.WhenAll(first, second).ConfigureAwait(false);
         }
 
         protected override void OnMessageCallback(Message content, SenderHolder sender)
         {
-            monitor.ManualyCount();
             senderHolders.Add(sender);
-            monitor.Increment();
         }
 
         protected override void ProgressNotification()

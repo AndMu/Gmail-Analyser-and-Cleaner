@@ -7,7 +7,7 @@ using Google.Apis.Gmail.v1;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using NLog;
-using Wikiled.Core.Utility.Arguments;
+using Wikiled.Console.Arguments;
 
 namespace Wikiled.Gmail.Commands
 {
@@ -19,7 +19,7 @@ namespace Wikiled.Gmail.Commands
 
         protected string ApplicationName { get; } = "Wikiled GMail Cleaner";
 
-        public override void Execute()
+        protected override async Task Execute(CancellationToken token)
         {
             UserCredential credential;
 
@@ -27,13 +27,13 @@ namespace Wikiled.Gmail.Commands
             {
                 string credPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
                 credPath = Path.Combine(credPath, ".credentials/wikiled.gmail.json");
-                credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                                                              GoogleClientSecrets.Load(stream).Secrets,
                                                              scopes,
                                                              "user",
                                                              CancellationToken.None,
                                                              new FileDataStore(credPath, true))
-                                                         .Result;
+                    .ConfigureAwait(false);
 
                 log.Info("Credential file saved to: " + credPath);
             }
@@ -46,7 +46,7 @@ namespace Wikiled.Gmail.Commands
                         ApplicationName = ApplicationName
                     });
 
-            Process(service).Wait();
+            await Process(service).ConfigureAwait(false);
         }
 
         protected abstract Task Process(GmailService service);

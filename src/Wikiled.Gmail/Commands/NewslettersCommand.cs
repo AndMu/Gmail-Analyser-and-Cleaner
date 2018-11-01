@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
@@ -20,10 +21,10 @@ namespace Wikiled.Gmail.Commands
 
         protected override bool IsChat => false;
 
-        public override void Execute()
+        public override Task StartExecution(CancellationToken token)
         {
             log.Info("Deleting newsletters...");
-            base.Execute();
+            return StartExecution(token);
         }
 
         protected override void OnMessageCallback(Message content, SenderHolder sender) 

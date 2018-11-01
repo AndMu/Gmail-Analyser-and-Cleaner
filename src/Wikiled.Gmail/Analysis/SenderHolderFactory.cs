@@ -9,19 +9,13 @@ namespace Wikiled.Gmail.Analysis
         public SenderHolder Construct(Message message)
         {
             var from = message.Payload?.Headers
-                              .Where(
-                                item => string.Compare(
-                                          item.Name,
-                                          "From",
-                                          StringComparison.OrdinalIgnoreCase)
-                                        == 0).Select(item => item.Value).FirstOrDefault();
+                .Where(item => string.Compare(item.Name, "From", StringComparison.OrdinalIgnoreCase) == 0)
+                .Select(item => item.Value)
+                .FirstOrDefault();
             var unsubscribe = message.Payload?.Headers
-                                     .Where(
-                                       item => string.Compare(
-                                                 item.Name,
-                                                 "List-Unsubscribe",
-                                                 StringComparison.OrdinalIgnoreCase)
-                                               == 0).Select(item => item.Value).FirstOrDefault();
+                .Where(item => string.Compare(item.Name, "List-Unsubscribe", StringComparison.OrdinalIgnoreCase) == 0)
+                .Select(item => item.Value)
+                .FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(@from))
             {

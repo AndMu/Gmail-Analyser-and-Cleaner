@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using Wikiled.Core.Utility.Arguments;
 
 namespace Wikiled.Gmail.Analysis
 {
@@ -7,7 +6,11 @@ namespace Wikiled.Gmail.Analysis
     {
         public SenderHolder(string email, int? size)
         {
-            Guard.NotNullOrEmpty(() => email, email);
+            if (string.IsNullOrEmpty(email))
+            {
+                throw new System.ArgumentException("message", nameof(email));
+            }
+
             var match = Regex.Match(email, @"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase);
             if (match.Success)
             {

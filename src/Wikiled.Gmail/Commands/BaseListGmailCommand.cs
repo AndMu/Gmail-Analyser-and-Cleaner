@@ -7,7 +7,7 @@ using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Requests;
 using NLog;
 using Polly;
-using Wikiled.Core.Utility.Logging;
+using Wikiled.Common.Logging;
 using Wikiled.Gmail.Analysis;
 
 namespace Wikiled.Gmail.Commands
@@ -47,12 +47,10 @@ namespace Wikiled.Gmail.Commands
             var chatLabel = chat ? "+" : "-";
             emailListRequest.Q = $"{chatLabel}label:chats";
             emailListRequest.IncludeSpamTrash = false;
-            emailListRequest.MaxResults = 200;
+            emailListRequest.MaxResults = 10000;
         }
 
-        private async Task<List<Message>> ProcessBatchRequest(
-            GmailService service,
-            IList<Message> messages)
+        private async Task<List<Message>> ProcessBatchRequest(GmailService service, IList<Message> messages)
         {
             var request = new BatchRequest(service);
             List<Message> errors = new List<Message>();
@@ -92,9 +90,7 @@ namespace Wikiled.Gmail.Commands
             return errors;
         }
 
-        private async Task ProcessMessages(
-            UsersResource.MessagesResource.ListRequest emailListRequest,
-            GmailService service)
+        private async Task ProcessMessages(UsersResource.MessagesResource.ListRequest emailListRequest, GmailService service)
         {
             do
             {
@@ -115,17 +111,12 @@ namespace Wikiled.Gmail.Commands
                                     (result, span) =>
                                         {
                                             var messages = error ?? emailListResponse.Messages;
-                                            log.Warn(
-                                                "Retrying after errors. With {0} messages",
-                                                messages.Count);
+                                            log.Warn("Retrying after errors. With {0} messages", messages.Count);
                                             return ProcessBatchRequest(service, messages);
                                         }).ExecuteAsync(
                                     async () =>
                                         {
-                                            error = await ProcessBatchRequest(
-                                                            service,
-                                                            emailListResponse.Messages)
-                                                        .ConfigureAwait(false);
+                                            error = await ProcessBatchRequest(service, emailListResponse.Messages).ConfigureAwait(false);
                                             return error;
                                         }).ConfigureAwait(false);
                 }
