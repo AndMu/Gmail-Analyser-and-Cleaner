@@ -32,15 +32,12 @@ namespace Wikiled.Gmail.Commands
             }
         }
 
-        protected override void OnMessageCallback(Message content, SenderHolder sender)
+        protected override void OnMessageCallback(MessageHolder message)
         {
-            lock (csvTarget)
-            {
-                csvTarget.WriteField(content.InternalDate);
-                csvTarget.WriteField(sender.Email);
-                csvTarget.WriteField(content.Snippet);
-                csvTarget.NextRecord();
-            }
+            csvTarget.WriteField(message.Message.InternalDate);
+            csvTarget.WriteField(message.Sender.Email);
+            csvTarget.WriteField(message.Message.Snippet);
+            csvTarget.NextRecord();
         }
     }
 }

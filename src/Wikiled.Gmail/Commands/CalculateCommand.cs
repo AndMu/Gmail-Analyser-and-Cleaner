@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
-using Google.Apis.Gmail.v1.Data;
 using NLog;
 using Wikiled.Gmail.Analysis;
 
@@ -30,9 +29,9 @@ namespace Wikiled.Gmail.Commands
             await Task.WhenAll(first, second).ConfigureAwait(false);
         }
 
-        protected override void OnMessageCallback(Message content, SenderHolder sender)
+        protected override void OnMessageCallback(MessageHolder message)
         {
-            senderHolders.Add(sender);
+            senderHolders.Add(message.Sender);
         }
 
         protected override void ProgressNotification()

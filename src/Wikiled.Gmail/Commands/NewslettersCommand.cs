@@ -27,13 +27,13 @@ namespace Wikiled.Gmail.Commands
             return StartExecution(token);
         }
 
-        protected override void OnMessageCallback(Message content, SenderHolder sender) 
+        protected override void OnMessageCallback(MessageHolder message)
         {
-            if (sender.HasUnsubscribeTag)
+            if (message.Sender.HasUnsubscribeTag)
             {
-                var result = currentGmailService.Users.Messages.Trash("me", content.Id);
+                var result = currentGmailService.Users.Messages.Trash("me", message.Message.Id);
                 var exResExecute = result.Execute();
-                deleteMessage.Enqueue(content.Id);
+                deleteMessage.Enqueue(message.Message.Id);
             }
         }
 

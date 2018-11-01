@@ -4,11 +4,11 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
-using Google.Apis.Requests;
 using NLog;
 using Polly;
 using Wikiled.Common.Logging;
 using Wikiled.Gmail.Analysis;
+using Wikiled.Gmail.Logic;
 
 namespace Wikiled.Gmail.Commands
 {
@@ -16,11 +16,9 @@ namespace Wikiled.Gmail.Commands
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-        private readonly SenderHolderFactory factory = new SenderHolderFactory();
-
         private PerformanceMonitor monitor;
 
-        protected abstract void OnMessageCallback(Message content, SenderHolder sender);
+        protected abstract void OnMessageCallback(MessageHolder message);
 
         protected abstract bool IsChat { get; }
 
@@ -33,95 +31,20 @@ namespace Wikiled.Gmail.Commands
 
         protected override async Task Process(GmailService service)
         {
-            var emailListRequest = service.Users.Messages.List("me");
-            AddFilters(emailListRequest, IsChat);
-            monitor = new PerformanceMonitor(0);
+            MessageHandler messages = new MessageHandler(service);
+            var chatLabel = IsChat ? "+" : "-";
+            messages.Setup($"{chatLabel}label:chats");
+            await messages.ReadMessageDefinitions().ConfigureAwait(false);
+            monitor = new PerformanceMonitor(messages.TotalMessages);
             using (Observable.Interval(TimeSpan.FromSeconds(60)).Subscribe(item => ProgressNotification()))
             {
-                await ProcessMessages(emailListRequest, service).ConfigureAwait(false);
-            }
-        }
-
-        private void AddFilters(UsersResource.MessagesResource.ListRequest emailListRequest, bool chat)
-        {
-            var chatLabel = chat ? "+" : "-";
-            emailListRequest.Q = $"{chatLabel}label:chats";
-            emailListRequest.IncludeSpamTrash = false;
-            emailListRequest.MaxResults = 10000;
-        }
-
-        private async Task<List<Message>> ProcessBatchRequest(GmailService service, IList<Message> messages)
-        {
-            var request = new BatchRequest(service);
-            List<Message> errors = new List<Message>();
-            foreach (var email in messages)
-            {
-                request.Queue<Message>(
-                    service.Users.Messages.Get("me", email.Id),
-                    (content, error, index, message) =>
-                        {
-                            monitor.Increment();
-                            if (error != null)
-                            {
-                                errors.Add(email);
-                            }
-                            else
-                            {
-                                var sender = factory.Construct(content);
-                                if (sender != null)
-                                {
-                                    OnMessageCallback(content, sender);
-                                }
-                            }
-                        });
-            }
-
-            try
-            {
-                await request.ExecuteAsync().ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                log.Error(e);
-                errors.Clear();
-                errors.AddRange(messages);
-            }
-
-            return errors;
-        }
-
-        private async Task ProcessMessages(UsersResource.MessagesResource.ListRequest emailListRequest, GmailService service)
-        {
-            do
-            {
-                var emailListResponse = await emailListRequest.ExecuteAsync().ConfigureAwait(false);
-                emailListRequest.PageToken = emailListResponse.NextPageToken;
-
-                if (emailListResponse.Messages != null)
+                await messages.ReadMessages().Select(item =>
                 {
-                    List<Message> error = null;
-                    await Policy.HandleResult<List<Message>>(result => result.Count > 0)
-                                .Or<Exception>().WaitAndRetryAsync(
-                                    new[]
-                                        {
-                                            TimeSpan.FromSeconds(2),
-                                            TimeSpan.FromSeconds(4),
-                                            TimeSpan.FromSeconds(6)
-                                        },
-                                    (result, span) =>
-                                        {
-                                            var messages = error ?? emailListResponse.Messages;
-                                            log.Warn("Retrying after errors. With {0} messages", messages.Count);
-                                            return ProcessBatchRequest(service, messages);
-                                        }).ExecuteAsync(
-                                    async () =>
-                                        {
-                                            error = await ProcessBatchRequest(service, emailListResponse.Messages).ConfigureAwait(false);
-                                            return error;
-                                        }).ConfigureAwait(false);
-                }
+                    monitor.Increment();
+                    OnMessageCallback(item);
+                    return item;
+                }).LastOrDefaultAsync();
             }
-            while (!string.IsNullOrEmpty(emailListRequest.PageToken));
         }
     }
 }
